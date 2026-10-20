@@ -1,8 +1,8 @@
 (() => {
   "use strict";
 
-  // All of your text lives in content.js. This file is the terminal itself.
-  const { LANGS, PROFILE } = window.SITE;
+  // The pop-up terminal. All of the text lives in content.js.
+  const { LANGS, PROFILE, LINEAGE } = window.SITE;
 
   const PREVIEW = false; // the preview build flips this so the form never posts
 
@@ -15,12 +15,7 @@
     "╚═╝  ╚═╝╚═╝     "
   ];
 
-  const THEMES = {
-    amber: ["#ffb347", "#ff8fa3"],
-    cyan: ["#5ccfe6", "#7fdc9a"],
-    violet: ["#b69cff", "#ff8fd0"],
-    mint: ["#7fdc9a", "#5ccfe6"]
-  };
+  const SECTIONS = ["about", "projects", "lineage", "work", "contact"];
 
   const FILES = {
     "about.md": "about",
@@ -41,7 +36,7 @@
   const ghost = $("ghost");
   const form = $("prompt-form");
   const sbMode = $("sb-mode");
-  const sbTheme = $("sb-theme");
+  const term = $("term");
   const sbClock = $("sb-clock");
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -114,14 +109,6 @@
   function setMode(name) { sbMode.textContent = name; }
   function focusInput() { if (!touch && !input.disabled) input.focus({ preventScroll: true }); }
 
-  /* ---------- theme ---------- */
-  function applyAccent(name) {
-    document.documentElement.dataset.accent = name;
-    sbTheme.textContent = name;
-  }
-  const savedAccent = store.get("kp-accent");
-  applyAccent(THEMES[savedAccent] ? savedAccent : "amber");
-
   /* ---------- command output ---------- */
   function intro() {
     const wrap = el("div", "fetch");
@@ -141,7 +128,7 @@
     PROFILE.links.filter((l) => l.url).forEach((l) => info.append(kv(l.label.toLowerCase(), extLink(l.url, l.url.replace(/^https?:\/\//, "")))));
     const sw = el("div", "swatches");
     sw.setAttribute("aria-hidden", "true");
-    ["var(--acc)", "var(--acc2)", "var(--cyan)", "var(--mint)", "var(--rose)", "var(--violet)", "var(--fg)", "var(--dim)"].forEach((c) => {
+    ["var(--t-acc)", "var(--t-acc2)", "var(--t-cyan)", "var(--t-mint)", "var(--t-rose)", "var(--t-violet)", "var(--t-fg)", "var(--t-dim)"].forEach((c) => {
       const i = el("i"); i.style.background = c; sw.append(i);
     });
     info.append(sw);
@@ -150,7 +137,7 @@
 
     const pillars = [];
     PROFILE.pillars.forEach((p, i) => { if (i) pillars.push(span("  |  ", "dim")); pillars.push(span(p, "acc")); });
-    print(el("div", "hero", PROFILE.tagline), line(...pillars));
+    print(el("div", "t-hero", PROFILE.tagline), line(...pillars));
 
     print(line(
       span(touch ? "Tap a command below to explore." : "Type ", "dim"),
@@ -172,7 +159,8 @@
     { name: "neofetch", desc: "show the intro again", run: intro },
     { name: "ls", desc: "list files", run: ls },
     { name: "cat", usage: "cat <file>", desc: "read a file", run: cat },
-    { name: "theme", usage: "theme [name]", desc: "change the accent color", run: theme },
+    { name: "goto", usage: "goto <section>", desc: "jump to part of the page", run: gotoCmd },
+    { name: "theme", usage: "theme light|dark", desc: "switch the site theme", run: theme },
     { name: "history", desc: "commands you've run", run: showHistory },
     { name: "clear", desc: "clear the screen (Ctrl+L)", run: () => screen.replaceChildren() },
     { name: "help", desc: "this list", run: help }
@@ -188,7 +176,7 @@
 
   function help() {
     const rows = COMMANDS.slice().sort((a, b) => {
-      const order = ["help", "about", "skills", "experience", "projects", "open", "lineage", "links", "now", "contact", "sql", "neofetch", "ls", "cat", "theme", "history", "clear"];
+      const order = ["help", "about", "skills", "experience", "projects", "open", "lineage", "links", "now", "contact", "sql", "goto", "neofetch", "ls", "cat", "theme", "history", "clear"];
       return order.indexOf(a.name) - order.indexOf(b.name);
     }).map((c) => {
       const r = el("div", "help-row");
@@ -278,13 +266,8 @@
     print(...rows);
   }
 
-  /* Example data for the lineage demo. It is made up, and says so on screen. */
-  const ASSETS = [
-    { id: "orders_raw", kind: "source table", owner: "data engineering", up: [] },
-    { id: "orders_clean", kind: "SQL transform", owner: "data engineering", up: ["orders_raw"] },
-    { id: "revenue_daily", kind: "curated table", owner: "finance", up: ["orders_clean"] },
-    { id: "revenue_dashboard", kind: "report", owner: "finance leadership", up: ["revenue_daily"] }
-  ];
+  /* Example data for the lineage demo lives in content.js. */
+  const ASSETS = LINEAGE;
   function walk(id, next) {
     const out = [];
     let frontier = [id];
@@ -340,11 +323,7 @@
 
   function now() {
     print(
-      kv("day job", "Python and SQL features for Collibra, with a focus on metadata governance"),
-      kv("learning", "Building real projects with AI, start to finish"),
-      kv("creating", "Content for YouTube and TikTok"),
-      kv("next", "An interactive 3D Home Assistant dashboard"),
-      kv("hardware", "A 3D-printed Raspberry Pi 5 touchscreen case to run Home Assistant on"),
+      ...(PROFILE.now || []).map((n) => kv(n.label.toLowerCase(), n.text)),
       line(span("See the rest in ", "dim"), cmdLink("projects"), span(".", "dim"))
     );
   }
@@ -375,21 +354,28 @@
   }
 
   function theme(args) {
-    const names = Object.keys(THEMES);
-    const swatchNode = (n) => { const s = el("span", "swatch"); s.style.background = THEMES[n][0]; return s; };
-    if (!args.length || !THEMES[args[0].toLowerCase()]) {
-      const bad = args.length ? args[0] : "";
-      const rows = names.map((n) => {
-        const d = el("div", "line");
-        d.append(swatchNode(n), cmdLink("theme " + n, n), n === document.documentElement.dataset.accent ? span("  (current)", "dim") : "");
-        return d;
-      });
-      print(...(bad ? [line(span("theme: unknown theme '" + bad + "'", "err"))] : []), ...rows);
+    const v = (args[0] || "").toLowerCase();
+    if (v !== "light" && v !== "dark") {
+      const cur = window.KP ? window.KP.effectiveTheme() : "";
+      print(line(span("Pick one: ", "dim"), cmdLink("theme light", "light"), span(" or ", "dim"), cmdLink("theme dark", "dark"), cur ? span("  (now " + cur + ")", "dim") : ""));
       return;
     }
-    const n = args[0].toLowerCase();
-    applyAccent(n); store.set("kp-accent", n);
-    print(line(swatchNode(n), span("Accent set to " + n + ".", "dim")));
+    if (window.KP) window.KP.setTheme(v);
+    print(line(span("Site theme set to " + v + ".", "dim")));
+  }
+
+  function gotoCmd(args) {
+    const s = (args[0] || "").toLowerCase();
+    if (!SECTIONS.includes(s)) {
+      const opts = [];
+      SECTIONS.forEach((x, i) => { if (i) opts.push(span(", ", "dim")); opts.push(cmdLink("goto " + x, x)); });
+      print(line(span("goto: pick a section: ", "dim"), ...opts));
+      return;
+    }
+    print(line(span("Jumping to " + s + "...", "dim")));
+    closeTerm(false);
+    const t = document.getElementById(s);
+    if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
   let history = [];
@@ -406,7 +392,8 @@
     print(line(span(PROFILE.handle + " is not in the sudoers file. This incident will be reported.", "err")), line(span("(Nobody was notified.)", "dim")));
   }
   function exitCmd() {
-    print(line(span("logout", "dim")), line("There's no closing this from here. Try ", cmdLink("contact"), " instead."));
+    print(line(span("logout", "dim")));
+    closeTerm();
   }
 
   /* ---------- contact flow ---------- */
@@ -536,7 +523,8 @@
     if (parts.length === 2 && parts[0] === "cat") return { base: "cat ", token: parts[1], list: Object.keys(FILES) };
     if (parts.length === 2 && parts[0] === "open") return { base: "open ", token: parts[1], list: PROFILE.projects.map((p) => p.id) };
     if (parts.length === 2 && parts[0] === "lineage") return { base: "lineage ", token: parts[1], list: ASSETS.map((x) => x.id) };
-    if (parts.length === 2 && parts[0] === "theme") return { base: "theme ", token: parts[1], list: Object.keys(THEMES) };
+    if (parts.length === 2 && parts[0] === "theme") return { base: "theme ", token: parts[1], list: ["light", "dark"] };
+    if (parts.length === 2 && parts[0] === "goto") return { base: "goto ", token: parts[1], list: SECTIONS };
     return null;
   }
 
@@ -587,7 +575,7 @@
       input.value = ""; renderGhost(); settle();
       return;
     }
-    if (key === "Escape") { input.value = ""; renderGhost(); return; }
+    if (key === "Escape") { if (input.value) { input.value = ""; renderGhost(); } else closeTerm(); return; }
     if (flow) return;
     if (key === "Tab") { e.preventDefault(); complete(); return; }
     if (key === "ArrowRight" && input.selectionStart === input.value.length) {
@@ -611,7 +599,7 @@
     if (flow) handleFlow(v); else runCommand(v);
   });
 
-  document.addEventListener("click", (e) => {
+  term.addEventListener("click", (e) => {
     const t = e.target.closest("[data-cmd]");
     if (!t) return;
     if (busy || input.readOnly) return;
@@ -625,13 +613,6 @@
     const sel = window.getSelection();
     if (sel && sel.toString()) return;
     focusInput();
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.target === input || input.disabled || input.readOnly) return;
-    if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
-    if (e.target.closest && e.target.closest("button, a")) return;
-    input.focus({ preventScroll: true });
   });
 
   /* ---------- status clock ---------- */
@@ -651,7 +632,7 @@
     const wait = (ms) => (skipped ? Promise.resolve() : sleep(ms));
 
     if (!skipped) {
-      const steps = ["resolving kingpra.com", "loading profile", "connecting to " + PROFILE.platform.toLowerCase() + " catalog"];
+      const steps = ["loading profile", "connecting to " + PROFILE.platform.toLowerCase() + " catalog"];
       for (const s of steps) {
         print(line(span("[ ", "dim"), span(" ok ", "ok"), span(" ]", "dim"), "  " + s));
         await wait(170);
@@ -673,5 +654,50 @@
     focusInput();
   }
 
-  boot();
+  /* ---------- open / close ---------- */
+  let booted = false;
+  let lastFocus = null;
+  function setExpanded(v) {
+    document.querySelectorAll("[data-term-open]").forEach((b) => b.setAttribute("aria-expanded", String(v)));
+    document.body.classList.toggle("term-open", v);
+  }
+  function openTerm() {
+    if (!term.hidden && term.classList.contains("is-open")) { focusInput(); return; }
+    lastFocus = document.activeElement;
+    term.hidden = false;
+    void term.offsetWidth;
+    term.classList.add("is-open");
+    setExpanded(true);
+    if (!booted) { booted = true; boot(); } else { focusInput(); settle(); }
+  }
+  function closeTerm(restoreFocus) {
+    if (term.hidden) return;
+    term.classList.remove("is-open");
+    setExpanded(false);
+    const done = () => { if (!term.classList.contains("is-open")) term.hidden = true; };
+    if (reduceMotion) done(); else setTimeout(done, 200);
+    if (restoreFocus !== false && lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+  }
+  function toggleTerm() { if (term.hidden) openTerm(); else closeTerm(); }
+
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-term-open]");
+    if (!b) return;
+    e.preventDefault();
+    openTerm();
+  });
+  $("term-close").addEventListener("click", () => closeTerm());
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "`" || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    const typingElsewhere = t && t !== input && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    if (typingElsewhere) return;
+    e.preventDefault();
+    toggleTerm();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !term.hidden && e.target !== input) closeTerm();
+  });
+
+  window.KPTerminal = { open: openTerm, close: closeTerm, toggle: toggleTerm };
 })();
