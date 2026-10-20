@@ -316,23 +316,14 @@
       for (let i = 0; i < N; i++) { const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = ga * i; out.push([Math.cos(t) * r, y, Math.sin(t) * r]); }
       return out;
     }
-    // SQL: a query-result table floating in space (header row, grid, values).
-    function table() {
-      const out = [], X0 = -1.0, X1 = 1.0, Y0 = -0.72, Y1 = 0.72, COLS = 4, ROWS = 6;
-      const cw = (X1 - X0) / COLS, rh = (Y1 - Y0) / ROWS, jz = () => (rnd() - 0.5) * 0.05;
+    // SQL: the classic database icon, three separate stacked discs.
+    function dbStack() {
+      const out = [], discs = [0.62, 0, -0.62], H = 0.32, R = 0.78;
       for (let i = 0; i < N; i++) {
-        const s = rnd();
-        if (s < 0.3) {
-          if (rnd() < 0.5) { const c = Math.floor(rnd() * (COLS + 1)); out.push([X0 + c * cw, Y0 + rnd() * (Y1 - Y0), jz()]); }
-          else { const r = Math.floor(rnd() * (ROWS + 1)); out.push([X0 + rnd() * (X1 - X0), Y0 + r * rh, jz()]); }
-        } else if (s < 0.5) {
-          out.push([X0 + rnd() * (X1 - X0), Y1 - rnd() * rh, jz()]);
-        } else {
-          const c = Math.floor(rnd() * COLS), r = 1 + Math.floor(rnd() * (ROWS - 1));
-          const len = 0.35 + ((c * 7 + r * 3) % 5) * 0.11;
-          const cx = X0 + c * cw + cw * 0.14, cy = Y1 - r * rh - rh * 0.5;
-          out.push([cx + rnd() * cw * len, cy + (rnd() - 0.5) * rh * 0.16, jz()]);
-        }
+        const c = discs[Math.floor(rnd() * 3)], a = rnd() * Math.PI * 2, s = rnd();
+        if (s < 0.35) { const r = Math.sqrt(rnd()) * R; out.push([Math.cos(a) * r, c + H / 2, Math.sin(a) * r]); }
+        else if (s < 0.75) out.push([Math.cos(a) * R, c + (rnd() - 0.5) * H, Math.sin(a) * R]);
+        else out.push([Math.cos(a) * R, c + (rnd() < 0.5 ? H / 2 : -H / 2), Math.sin(a) * R]);
       }
       return out;
     }
@@ -394,7 +385,7 @@
       return out;
     }
 
-    const shapes = [sphere(), table(), house(), initials()];
+    const shapes = [sphere(), dbStack(), house(), initials()];
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { shapes[3] = initials(); });
     const perm = Array.from({ length: N }, (_, i) => i);
     for (let i = N - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
