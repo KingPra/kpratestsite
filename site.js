@@ -294,53 +294,124 @@
 
   $("#year").textContent = new Date().getFullYear();
 
-  /* ---------------- Hero: the 3D data universe ---------------- */
-  const NODES = [
-    { label: "Python", lon: 0.2, lat: 0.55, to: "work" },
-    { label: "SQL", lon: -0.5, lat: 0.35, to: "work" },
-    { label: "Collibra", lon: 0.9, lat: 0.1, to: "lineage" },
-    { label: "Metadata governance", short: "Metadata", lon: 1.6, lat: -0.35, to: "lineage" },
-    { label: "Lineage", lon: 2.3, lat: 0.25, to: "lineage" },
-    { label: "AI", lon: 3.0, lat: -0.55, to: "about" },
-    { label: "Home Assistant", lon: 3.8, lat: 0.45, to: "project-dashboard" },
-    { label: "Pi 5 case", lon: 4.5, lat: -0.15, to: "project-pi-case" },
-    { label: "3D dashboard", lon: 5.2, lat: 0.6, to: "project-dashboard" },
-    { label: "YouTube + TikTok", short: "Videos", lon: 5.8, lat: -0.6, to: "project-content" }
-  ];
-  const LINKS = [[0, 2], [1, 2], [2, 3], [2, 4], [3, 4], [5, 8], [6, 8], [7, 8], [8, 9], [0, 6], [5, 9]];
-  const destName = { work: "Experience", about: "About", lineage: "the lineage demo" };
-
-  function goTo(target) {
-    const t = document.getElementById(target);
-    if (!t) return;
-    const isCard = target.startsWith("project-");
-    t.scrollIntoView({ behavior: smooth(), block: isCard ? "center" : "start" });
-    if (isCard && t.animate && !reduceMotion) {
-      t.animate([{ boxShadow: "0 0 0 0 rgba(122,162,255,0)" }, { boxShadow: "0 0 0 8px rgba(122,162,255,.25)" }, { boxShadow: "0 0 0 0 rgba(122,162,255,0)" }], { duration: 1300, delay: 450 });
-    }
-  }
-
-  (function initGlobe() {
-    const canvas = $("#globe");
-    const focusEl = $("#globe-focus");
+  /* ---------------- Hero: morphing particles ---------------- */
+  (function initMorph() {
+    const canvas = $("#morph");
     const ctx = canvas && canvas.getContext("2d");
     if (!ctx) return;
-    const idleText = finePointer ? "Hover a point." : "Tap a point.";
-    focusEl.textContent = idleText;
+    const tabsEl = $("#morph-tabs");
+    const captionEl = $("#morph-caption");
+    const SHAPES = [
+      { name: "Data universe", caption: "Every point is something I work with." },
+      { name: "SQL", caption: "Seven years of Python and SQL." },
+      { name: "Home Assistant", caption: "Building a 3D dashboard for my smart home." },
+      { name: "King Pra", caption: "Click the shape to keep it moving." }
+    ];
+    const small = window.matchMedia("(max-width: 40rem)").matches;
+    const N = small ? 1300 : 2000;
+    const rnd = Math.random;
 
-    const pts = [];
-    const N = 900, ga = Math.PI * (3 - Math.sqrt(5));
-    for (let i = 0; i < N; i++) {
-      const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = ga * i;
-      pts.push([Math.cos(t) * r, y, Math.sin(t) * r]);
+    function sphere() {
+      const out = [], ga = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < N; i++) { const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = ga * i; out.push([Math.cos(t) * r, y, Math.sin(t) * r]); }
+      return out;
     }
-    const nodes = NODES.map((n) => { const c = Math.cos(n.lat); return Object.assign({}, n, { p: [Math.cos(n.lon) * c * 1.06, Math.sin(n.lat) * 1.06, Math.sin(n.lon) * c * 1.06] }); });
+    function cylinder() {
+      const out = [];
+      for (let i = 0; i < N; i++) {
+        const a = rnd() * Math.PI * 2, k = rnd();
+        if (rnd() < 0.3) { const ring = [-0.85, -0.3, 0.3, 0.85][Math.floor(rnd() * 4)]; out.push([Math.cos(a) * 0.7, ring, Math.sin(a) * 0.7]); continue; }
+        if (k < 0.62) { let y = -0.85 + rnd() * 1.7; if (rnd() < 0.35) y = (rnd() < 0.5 ? -0.3 : 0.3) + (rnd() - 0.5) * 0.03; out.push([Math.cos(a) * 0.7, y, Math.sin(a) * 0.7]); }
+        else { const r = Math.sqrt(rnd()) * 0.7; out.push([Math.cos(a) * r, k < 0.85 ? 0.85 : -0.85, Math.sin(a) * r]); }
+      }
+      return out;
+    }
+    function onEdges(edges) {
+      const lens = edges.map((e) => Math.hypot(e[1][0] - e[0][0], e[1][1] - e[0][1], e[1][2] - e[0][2]));
+      const total = lens.reduce((a, b) => a + b, 0);
+      let r = rnd() * total, k = 0;
+      while (r > lens[k] && k < edges.length - 1) { r -= lens[k]; k += 1; }
+      const e = edges[k], t = rnd(), j = () => (rnd() - 0.5) * 0.02;
+      return [e[0][0] + (e[1][0] - e[0][0]) * t + j(), e[0][1] + (e[1][1] - e[0][1]) * t + j(), e[0][2] + (e[1][2] - e[0][2]) * t + j()];
+    }
+    const HOUSE_EDGES = (() => {
+      const E = [], X = 0.72, Z = 0.6, B = -0.85, T = 0.05, RX = 0.84, RY = 0.82, RZ = 0.68;
+      [[-X, -Z], [X, -Z], [X, Z], [-X, Z]].forEach((c, i, a) => {
+        const n = a[(i + 1) % 4];
+        E.push([[c[0], B, c[1]], [n[0], B, n[1]]], [[c[0], T, c[1]], [n[0], T, n[1]]], [[c[0], B, c[1]], [c[0], T, c[1]]]);
+      });
+      E.push([[0, RY, -RZ], [0, RY, RZ]]);
+      [-RZ, RZ].forEach((z) => { E.push([[-RX, T, z], [0, RY, z]], [[RX, T, z], [0, RY, z]], [[-RX, T, z], [RX, T, z]]); });
+      [-RX, RX].forEach((x) => { E.push([[x, T, -RZ], [x, T, RZ]]); });
+      E.push([[-0.16, B, Z], [-0.16, -0.32, Z]], [[0.16, B, Z], [0.16, -0.32, Z]], [[-0.16, -0.32, Z], [0.16, -0.32, Z]]);
+      E.push([[0.32, -0.45, Z], [0.58, -0.45, Z]], [[0.32, -0.2, Z], [0.58, -0.2, Z]], [[0.32, -0.45, Z], [0.32, -0.2, Z]], [[0.58, -0.45, Z], [0.58, -0.2, Z]]);
+      E.push([[-0.58, -0.45, Z], [-0.32, -0.45, Z]], [[-0.58, -0.2, Z], [-0.32, -0.2, Z]], [[-0.58, -0.45, Z], [-0.58, -0.2, Z]], [[-0.32, -0.45, Z], [-0.32, -0.2, Z]]);
+      return E;
+    })();
+    function house() {
+      const out = [], X = 0.72, Z = 0.6, B = -0.85, T = 0.05, RX = 0.84, RY = 0.82, RZ = 0.68;
+      for (let i = 0; i < N; i++) {
+        let p;
+        if (rnd() < 0.55) p = onEdges(HOUSE_EDGES);
+        else {
+          const s = rnd(), u = rnd() * 2 - 1, wy = B + rnd() * (T - B);
+          if (s < 0.18) p = [u * X, wy, Z];
+          else if (s < 0.32) p = [u * X, wy, -Z];
+          else if (s < 0.44) p = [X, wy, u * Z];
+          else if (s < 0.56) p = [-X, wy, u * Z];
+          else if (s < 0.84) { const q = rnd(), side = rnd() < 0.5 ? 1 : -1; p = [side * RX * (1 - q), T + q * (RY - T), u * RZ]; }
+          else { const q = rnd(), z = rnd() < 0.5 ? RZ : -RZ, half = (1 - q) * RX; p = [(rnd() * 2 - 1) * half, T + q * (RY - T), z]; }
+        }
+        out.push([p[0] * 0.9, p[1] * 0.9 - 0.02, p[2] * 0.9]);
+      }
+      return out;
+    }
+    function initials() {
+      const oc = document.createElement("canvas");
+      oc.width = 420; oc.height = 220;
+      const ox = oc.getContext("2d");
+      ox.fillStyle = "#fff";
+      ox.font = "700 210px Geist, Arial, sans-serif";
+      ox.textAlign = "center"; ox.textBaseline = "middle";
+      ox.fillText("KP", 210, 118);
+      const data = ox.getImageData(0, 0, 420, 220).data, filled = [];
+      for (let y = 0; y < 220; y += 2) for (let x = 0; x < 420; x += 2) if (data[(y * 420 + x) * 4 + 3] > 128) filled.push([x, y]);
+      const out = [];
+      for (let i = 0; i < N; i++) {
+        const f = filled.length ? filled[Math.floor(rnd() * filled.length)] : [210, 110];
+        out.push([(f[0] - 210) / 140, -(f[1] - 110) / 140, (rnd() - 0.5) * 0.18]);
+      }
+      return out;
+    }
 
-    let W = 0, H = 0, CX = 0, CY = 0, R = 0, compact = false;
-    let rotY = 0.6, rotX = -0.3, vel = 0;
-    let drag = null, mouse = null, hover = null, tapped = null;
-    let visible = true, rafId = 0, lastDraw = 0;
-    let P = [];
+    const shapes = [sphere(), cylinder(), house(), initials()];
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { shapes[3] = initials(); });
+    const perm = Array.from({ length: N }, (_, i) => i);
+    for (let i = N - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+    const cur = shapes[0].map((p) => p.slice());
+    let from = cur.map((p) => p.slice());
+    let idx = 0, morphStart = -1e9, lastSwitch = performance.now(), tilt = 0;
+    let W = 0, H = 0, CX = 0, CY = 0, R = 0, mouse = null, visible = true, rafId = 0, paused = false;
+
+    const tabs = SHAPES.map((s, i) => {
+      const b = el("button", "morph-tab", s.name);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(i === 0));
+      b.addEventListener("click", () => go(i));
+      tabsEl.append(b);
+      return b;
+    });
+
+    function go(i) {
+      from = cur.map((p) => p.slice());
+      idx = i;
+      morphStart = reduceMotion ? -1e9 : performance.now();
+      lastSwitch = performance.now();
+      tabs.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+      captionEl.textContent = SHAPES[i].caption;
+      if (reduceMotion) { shapes[i].forEach((p, k) => { const t = shapes[i][perm[k]]; cur[k][0] = t[0]; cur[k][1] = t[1]; cur[k][2] = t[2]; }); }
+      kick();
+    }
 
     function layout() {
       const r = canvas.getBoundingClientRect();
@@ -349,151 +420,160 @@
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      compact = W < 700;
-      CX = W * (compact ? 0.5 : 0.56);
-      CY = H * (compact ? 0.53 : 0.5);
-      R = compact ? Math.min(W * 0.4, H * 0.27) : Math.min(W * 0.28, H * 0.3);
-    }
-
-    function project(p) {
-      const cy = Math.cos(rotY), sy = Math.sin(rotY), cx = Math.cos(rotX), sx = Math.sin(rotX);
-      let x = p[0] * cy - p[2] * sy, z = p[0] * sy + p[2] * cy;
-      const y = p[1] * cx - z * sx; z = p[1] * sx + z * cx;
-      const f = 3.2 / (3.2 + z);
-      return { x: CX + x * R * f, y: CY + y * R * f, z: z, f: f };
-    }
-
-    function setHover(k) {
-      if (hover === k) return;
-      hover = k;
-      canvas.style.cursor = k == null ? "grab" : "pointer";
-      if (k == null) { focusEl.textContent = idleText; return; }
-      const n = nodes[k];
-      const dest = n.to.startsWith("project-") ? "the project" : (destName[n.to] || n.to);
-      focusEl.textContent = n.label + (finePointer || tapped === k ? ". Click to see " + dest + "." : ". Tap again to see " + dest + ".");
+      const compact = W < 700;
+      CX = W * (compact ? 0.5 : 0.58);
+      CY = H * (compact ? 0.47 : 0.48);
+      R = compact ? Math.min(W * 0.36, H * 0.21) : Math.min(W * 0.19, H * 0.25);
     }
 
     function draw(now) {
       if (!W) return;
+      if (!reduceMotion && !paused && now - lastSwitch > 4800) go((idx + 1) % SHAPES.length);
       ctx.clearRect(0, 0, W, H);
-      const g = ctx.createRadialGradient(CX, CY, 10, CX, CY, R * 1.5);
-      g.addColorStop(0, "rgba(90,130,255,0.11)"); g.addColorStop(1, "rgba(90,130,255,0)");
+      const g = ctx.createRadialGradient(CX, CY, 10, CX, CY, R * 1.7);
+      g.addColorStop(0, "rgba(90,130,255,0.10)"); g.addColorStop(1, "rgba(90,130,255,0)");
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-      for (let i = 0; i < pts.length; i++) {
-        const q = project(pts[i]);
-        const a = 0.08 + (1 - (q.z + 1) / 2) * 0.7;
-        const v = Math.round(200 + 40 * ((pts[i][1] + 1) / 2));
-        ctx.fillStyle = "rgba(" + v + "," + v + "," + Math.min(255, v + 20) + "," + (a * 0.85).toFixed(3) + ")";
-        ctx.beginPath(); ctx.arc(q.x, q.y, 0.7 + q.f * 0.7, 0, Math.PI * 2); ctx.fill();
+      const k = Math.min(1, (now - morphStart) / 1500);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      const target = shapes[idx];
+      const want = mouse ? (mouse.x / W - 0.5) * 0.8 : 0;
+      tilt += (want - tilt) * 0.05;
+      const ry = (reduceMotion ? 0.35 : Math.sin(now / 2600) * 0.65) + tilt;
+      const rx = -0.18 + (mouse ? (mouse.y / H - 0.5) * 0.4 : 0);
+      const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
+      for (let i = 0; i < N; i++) {
+        const T = target[perm[i]], F = from[i], P = cur[i];
+        if (k < 1) { P[0] = F[0] + (T[0] - F[0]) * e; P[1] = F[1] + (T[1] - F[1]) * e; P[2] = F[2] + (T[2] - F[2]) * e; }
+        else { P[0] = T[0]; P[1] = T[1]; P[2] = T[2]; }
+        const jx = reduceMotion ? 0 : Math.sin(i * 12.9898 + now / 700) * 0.006;
+        const x0 = P[0] + jx;
+        const x = x0 * cy - P[2] * sy;
+        let z = x0 * sy + P[2] * cy;
+        const y = P[1] * cx - z * sx;
+        z = P[1] * sx + z * cx;
+        const f = 3.4 / (3.4 + z), X = CX + x * R * f, Y = CY - y * R * f;
+        const a = 0.15 + (1 - (z + 1) / 2) * 0.75;
+        ctx.fillStyle = i % 9 === 0 ? "rgba(122,162,255," + a.toFixed(3) + ")" : "rgba(222,228,240," + (a * 0.85).toFixed(3) + ")";
+        const sz = 1.4 * f + 0.4;
+        ctx.fillRect(X, Y, sz, sz);
       }
-
-      P = nodes.map((n) => project(n.p));
-      if (mouse && !drag) {
-        let best = null, bd = 28;
-        P.forEach((q, k) => { const d = Math.hypot(q.x - mouse.x, q.y - mouse.y); if (q.z < 0.4 && d < bd) { bd = d; best = k; } });
-        setHover(best);
-      }
-
-      LINKS.forEach((l, k) => {
-        const A = P[l[0]], B = P[l[1]];
-        const on = hover != null && (l[0] === hover || l[1] === hover);
-        const a = on ? 0.95 : 0.1 + (1 - ((A.z + B.z) / 2 + 1) / 2) * 0.3;
-        const mx = (A.x + B.x) / 2 - (CX - (A.x + B.x) / 2) * 0.12, my = (A.y + B.y) / 2 - (CY - (A.y + B.y) / 2) * 0.12;
-        ctx.strokeStyle = "rgba(122,162,255," + a.toFixed(3) + ")"; ctx.lineWidth = on ? 1.6 : 0.9;
-        ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(mx, my, B.x, B.y); ctx.stroke();
-        if (!reduceMotion) {
-          const t = ((now / 2000) + k * 0.23) % 1, u = 1 - t;
-          ctx.fillStyle = "rgba(170,195,255," + Math.min(1, a + 0.2).toFixed(3) + ")";
-          ctx.beginPath(); ctx.arc(u * u * A.x + 2 * u * t * mx + t * t * B.x, u * u * A.y + 2 * u * t * my + t * t * B.y, 1.6, 0, Math.PI * 2); ctx.fill();
-        }
-      });
-
-      ctx.font = "500 " + (compact ? 12 : 13) + "px Geist, system-ui, sans-serif";
-      ctx.textBaseline = "alphabetic";
-      P.forEach((q, k) => {
-        const front = 1 - (q.z + 1) / 2, on = k === hover;
-        ctx.globalAlpha = on ? 1 : Math.max(0.08, front * front * 1.05);
-        ctx.fillStyle = "#7aa2ff";
-        ctx.beginPath(); ctx.arc(q.x, q.y, on ? 5.5 : 2.6 + front * 1.8, 0, Math.PI * 2); ctx.fill();
-        if (on) { ctx.strokeStyle = "#7aa2ff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y, 14, 0, Math.PI * 2); ctx.stroke(); }
-        ctx.fillStyle = on ? "#ffffff" : "rgb(196,204,222)";
-        const label = compact && nodes[k].short ? nodes[k].short : nodes[k].label;
-        const tw = ctx.measureText(label).width;
-        const lx = q.x + 11 + tw > W - 8 ? q.x - 11 - tw : q.x + 11;
-        ctx.fillText(label, lx, q.y - 9);
-        ctx.globalAlpha = 1;
-      });
     }
 
     function frame(now) {
-      if (!drag && !reduceMotion) { rotY += 0.0012 + vel; vel *= 0.95; }
-      else if (!drag && Math.abs(vel) > 0.0001) { rotY += vel; vel *= 0.9; }
       draw(now);
-      lastDraw = now;
-      rafId = visible ? requestAnimationFrame(frame) : 0;
+      rafId = visible && !reduceMotion ? requestAnimationFrame(frame) : 0;
     }
-    function kick() { if (!rafId && visible) rafId = requestAnimationFrame(frame); }
+    function kick() {
+      if (reduceMotion) { requestAnimationFrame((t) => draw(t)); return; }
+      if (!rafId && visible) rafId = requestAnimationFrame(frame);
+    }
 
-    const local = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-    canvas.addEventListener("pointerdown", (e) => {
-      drag = { start: local(e), last: local(e), moved: false, id: e.pointerId, type: e.pointerType };
-      vel = 0;
-      if (e.pointerType === "mouse") { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = "grabbing"; }
-    });
     canvas.addEventListener("pointermove", (e) => {
-      const p = local(e);
-      if (e.pointerType === "mouse") mouse = p;
-      if (drag && drag.id === e.pointerId) {
-        const dx = p.x - drag.last.x, dy = p.y - drag.last.y;
-        if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) > 4) drag.moved = true;
-        rotY += dx * 0.006;
-        if (drag.type === "mouse") rotX = Math.max(-1.1, Math.min(1.1, rotX + dy * 0.004));
-        vel = dx * 0.0006;
-        drag.last = p;
-      }
-      kick();
+      if (e.pointerType !== "mouse") return;
+      const r = canvas.getBoundingClientRect();
+      mouse = { x: e.clientX - r.left, y: e.clientY - r.top };
+      if (reduceMotion) kick();
     });
-    const end = (e) => {
-      if (!drag || drag.id !== e.pointerId) return;
-      const wasClick = !drag.moved;
-      const p = local(e);
-      drag = null;
-      canvas.style.cursor = hover == null ? "grab" : "pointer";
-      if (!wasClick || e.type === "pointercancel") return;
-      let best = null, bd = finePointer ? 28 : 36;
-      P.forEach((q, k) => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (q.z < 0.4 && d < bd) { bd = d; best = k; } });
-      if (best == null) { tapped = null; if (!finePointer) setHover(null); return; }
-      if (!finePointer && tapped !== best) { tapped = best; hover = null; setHover(best); kick(); return; }
-      tapped = null;
-      goTo(nodes[best].to);
-    };
-    canvas.addEventListener("pointerup", end);
-    canvas.addEventListener("pointercancel", end);
-    canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") { mouse = null; if (!drag) setHover(null); } });
+    canvas.addEventListener("pointerleave", () => { mouse = null; if (reduceMotion) kick(); });
+    canvas.addEventListener("click", () => go((idx + 1) % SHAPES.length));
+    tabsEl.addEventListener("pointerenter", () => { paused = true; });
+    tabsEl.addEventListener("pointerleave", () => { paused = false; lastSwitch = performance.now(); });
 
-    // Keyboard and screen reader access to the same points.
-    const list = $("#globe-nodes");
-    nodes.forEach((n, k) => {
-      const li = el("li");
-      const b = el("button", "", n.label);
-      b.type = "button";
-      b.addEventListener("focus", () => { setHover(k); kick(); });
-      b.addEventListener("blur", () => setHover(null));
-      b.addEventListener("click", () => goTo(n.to));
-      li.append(b);
-      list.append(li);
-    });
-
+    captionEl.textContent = SHAPES[0].caption;
     layout();
-    if ("ResizeObserver" in window) new ResizeObserver(() => { layout(); if (!rafId) draw(performance.now()); }).observe(canvas);
-    else window.addEventListener("resize", () => { layout(); draw(performance.now()); });
-    if ("IntersectionObserver" in window) {
-      new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; if (visible) kick(); }).observe(canvas);
-    }
+    if ("ResizeObserver" in window) new ResizeObserver(() => { layout(); draw(performance.now()); }).observe(canvas);
+    if ("IntersectionObserver" in window) new IntersectionObserver((en) => { visible = en[0].isIntersecting; if (visible) kick(); }).observe(canvas);
     document.addEventListener("visibilitychange", () => { visible = !document.hidden; if (visible) kick(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!rafId) draw(performance.now()); });
     draw(performance.now());
     kick();
+  })();
+
+  /* ---------------- Lineage section: the river ---------------- */
+  (function initRiver() {
+    const canvas = $("#river");
+    const ctx = canvas && canvas.getContext("2d");
+    if (!ctx) return;
+    let W = 0, H = 0, compact = false, parts = [], mouse = null, visible = false, rafId = 0;
+    const srcF = [0.24, 0.5, 0.76], outF = [0.36, 0.64];
+
+    function spawn(anyX) {
+      const lane = Math.floor(Math.random() * 3);
+      return { x: anyX ? Math.random() * W : -10 - Math.random() * 80, y: srcF[lane] * H + (Math.random() - 0.5) * 30, lane: lane, out: Math.random() < 0.5 ? 0 : 1, o: Math.random() - 0.5, sp: (1.1 + Math.random() * 1.4) * (W / 1200 + 0.3), px: 0, py: 0 };
+    }
+    const smooth = (v) => (v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v));
+    function targetY(p) {
+      const u = p.x / W, src = srcF[p.lane] * H + p.o * H * 0.12, mid = H * 0.5 + p.o * H * 0.07, out = outF[p.out] * H + p.o * H * 0.12;
+      if (u < 0.5) return src + (mid - src) * smooth((u - 0.12) / 0.38);
+      return mid + (out - mid) * smooth((u - 0.6) / 0.3);
+    }
+    function layout() {
+      const r = canvas.getBoundingClientRect();
+      W = r.width; H = r.height;
+      if (!W || !H) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      compact = W < 640;
+      const count = Math.round(Math.min(1400, W * 1.1));
+      parts = Array.from({ length: count }, () => spawn(true));
+      ctx.fillStyle = "#050608"; ctx.fillRect(0, 0, W, H);
+    }
+    function labels() {
+      const nodes = [
+        [W * 0.04, srcF[0] * H, "Python", "l"], [W * 0.04, srcF[1] * H, "SQL", "l"], [W * 0.04, srcF[2] * H, "AI", "l"],
+        [W * 0.55, H * 0.5, compact ? "Collibra" : "Collibra, metadata governance", "c"],
+        [W * 0.96, outF[0] * H, "Trusted data", "r"], [W * 0.96, outF[1] * H, compact ? "Projects" : "Things I build", "r"]
+      ];
+      ctx.font = "500 " + (compact ? 12 : 13.5) + "px Geist, system-ui, sans-serif";
+      nodes.forEach((n) => {
+        ctx.fillStyle = "#050608"; ctx.beginPath(); ctx.arc(n[0], n[1], 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#7aa2ff"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n[0], n[1], 6, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = "#e6eaf3";
+        const w = ctx.measureText(n[2]).width;
+        const x = n[3] === "l" ? n[0] + 13 : n[3] === "r" ? n[0] - 13 - w : n[0] - w / 2;
+        ctx.fillText(n[2], x, n[1] - (n[3] === "c" ? 18 : 11));
+      });
+    }
+    function step(t) {
+      ctx.fillStyle = "rgba(5,6,8,0.14)"; ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        p.px = p.x; p.py = p.y;
+        let vy = (targetY(p) + Math.sin(p.x * 0.012 + t * 1.3 + p.o * 6) * H * 0.02 - p.y) * 0.05, vx = p.sp;
+        if (mouse) {
+          const dx = p.x - mouse.x, dy = p.y - mouse.y, d = Math.hypot(dx, dy);
+          if (d < 90 && d > 0.1) { const f = (90 - d) / 90; vx += dx / d * f * 3; vy += dy / d * f * 4; }
+        }
+        p.x += vx; p.y += vy;
+        if (p.x > W + 10) { parts[i] = spawn(false); continue; }
+        const u = p.x / W, hot = u > 0.45 && u < 0.65;
+        ctx.strokeStyle = hot ? "rgba(170,195,255,0.85)" : u > 0.65 ? "rgba(122,162,255,0.6)" : "rgba(200,206,222,0.45)";
+        ctx.lineWidth = hot ? 1.4 : 1;
+        ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+      }
+      labels();
+    }
+    function staticFrame() {
+      ctx.fillStyle = "#050608"; ctx.fillRect(0, 0, W, H);
+      for (let k = 0; k < 120; k++) step(k / 60);
+    }
+    function frame(now) {
+      step(now / 1000);
+      rafId = visible ? requestAnimationFrame(frame) : 0;
+    }
+    canvas.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse") return;
+      const r = canvas.getBoundingClientRect();
+      mouse = { x: e.clientX - r.left, y: e.clientY - r.top };
+    });
+    canvas.addEventListener("pointerleave", () => { mouse = null; });
+
+    layout();
+    if (reduceMotion) staticFrame();
+    if ("ResizeObserver" in window) new ResizeObserver(() => { const w = W; layout(); if (reduceMotion || Math.abs(w - W) > 1) staticFrame(); }).observe(canvas);
+    if (!reduceMotion && "IntersectionObserver" in window) {
+      new IntersectionObserver((en) => { visible = en[0].isIntersecting; if (visible && !rafId) rafId = requestAnimationFrame(frame); }).observe(canvas);
+      document.addEventListener("visibilitychange", () => { if (document.hidden) visible = false; });
+    } else if (!reduceMotion) { visible = true; rafId = requestAnimationFrame(frame); }
   })();
 })();

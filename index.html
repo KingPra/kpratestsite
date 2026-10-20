@@ -39,19 +39,19 @@
 
   <main id="main">
     <section class="hero" id="top">
-      <canvas id="globe" class="globe" aria-hidden="true"></canvas>
+      <canvas id="morph" class="morph" aria-hidden="true"></canvas>
       <div class="wrap hero-top">
         <h1 class="hero-name" id="hero-name">King Pra</h1>
         <p class="hero-sub">Software engineer. Python, SQL, metadata governance.</p>
       </div>
       <div class="hero-bottom">
-        <p class="hero-line">Everything I work with, connected. <span class="hero-focus" id="globe-focus" aria-live="polite"></span></p>
+        <div class="morph-tabs" id="morph-tabs" role="group" aria-label="Shapes"></div>
+        <p class="hero-line" id="morph-caption" aria-live="polite"></p>
         <div class="actions">
           <a class="btn primary" href="#projects">See my work</a>
           <a class="btn" href="#contact">Get in touch</a>
         </div>
       </div>
-      <ul class="sr-only" id="globe-nodes" aria-label="Topics on this page"></ul>
     </section>
 
     <section id="about" class="section">
@@ -83,6 +83,7 @@
           <h2>Metadata governance, in one picture</h2>
           <p class="section-sub">My day job is helping teams see where their data comes from and what depends on it. Pick a table to see what a change would affect. The tables are example data.</p>
         </div>
+        <canvas id="river" class="river" aria-hidden="true"></canvas>
         <div class="flow" id="flow" role="group" aria-label="Example data lineage"></div>
         <div class="flow-panel" id="flow-panel" aria-live="polite"></div>
       </div>
