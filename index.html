@@ -13,13 +13,11 @@
   <meta property="og:title" content="King Pra - Software Engineer">
   <meta property="og:description" content="King Pra is a software engineer with 7 years of experience in Python and SQL, building features for Collibra with a focus on metadata governance.">
   <meta name="twitter:card" content="summary">
-  <meta name="theme-color" content="#f3f5f8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232b59ff'/%3E%3Cpath d='M18 22c10 0 14 20 28 20' stroke='%23fff' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='22' r='6' fill='%23fff'/%3E%3Ccircle cx='46' cy='42' r='6' fill='%23fff'/%3E%3C/svg%3E">
-  <script>try{var t=localStorage.getItem("kp-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+  <meta name="theme-color" content="#050608">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237aa2ff'/%3E%3Cpath d='M18 22c10 0 14 20 28 20' stroke='%23fff' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='18' cy='22' r='6' fill='%23fff'/%3E%3Ccircle cx='46' cy='42' r='6' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Geist:wght@400..700&family=Geist+Mono:wght@400..700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,10 +25,7 @@
 
   <header class="site-header">
     <div class="wrap bar">
-      <a class="brand" href="#top" aria-label="King Pra, back to top">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M8 10c6 0 9 12 16 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="8" cy="10" r="4"/><circle cx="24" cy="22" r="4"/></svg>
-        <span>King Pra</span>
-      </a>
+      <a class="brand" href="#top" aria-label="King Pra, back to top">King Pra</a>
       <nav class="nav" aria-label="Main">
         <a href="#about">About</a>
         <a href="#projects">Projects</a>
@@ -38,34 +33,25 @@
         <a href="#work">Experience</a>
         <a href="#contact">Contact</a>
       </nav>
-      <div class="bar-actions">
-        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch theme">
-          <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
-          <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
-        </button>
-        <button class="term-btn" type="button" data-term-open aria-controls="term" aria-expanded="false"><span class="prompt-glyph" aria-hidden="true">&gt;_</span><span class="term-btn-label">Terminal</span></button>
-      </div>
+      <button class="term-btn" type="button" data-term-open aria-controls="term" aria-expanded="false" aria-label="Open the terminal"><span class="prompt-glyph" aria-hidden="true">&gt;_</span></button>
     </div>
   </header>
 
   <main id="main">
     <section class="hero" id="top">
-      <div class="wrap hero-grid">
-        <div class="hero-copy">
-          <h1 class="hero-name" id="hero-name">King Pra</h1>
-          <p class="hero-lede" id="hero-lede">Software engineer with 7 years of Python and SQL, building metadata governance features for Collibra. Lately I've been building projects with AI.</p>
-          <div class="actions">
-            <a class="btn primary" href="#projects">See my projects</a>
-            <button class="btn ghost" type="button" data-term-open aria-controls="term" aria-expanded="false"><span class="prompt-glyph" aria-hidden="true">&gt;_</span> Open the terminal</button>
-          </div>
-          <dl class="facts" id="facts"></dl>
-        </div>
-        <figure class="graph">
-          <canvas id="graph-canvas" aria-hidden="true"></canvas>
-          <figcaption id="graph-caption" class="graph-caption" aria-live="polite">Hover a node to trace what feeds it and what it feeds.</figcaption>
-          <ul class="sr-only" id="graph-nodes" aria-label="Topics on this page"></ul>
-        </figure>
+      <canvas id="globe" class="globe" aria-hidden="true"></canvas>
+      <div class="wrap hero-top">
+        <h1 class="hero-name" id="hero-name">King Pra</h1>
+        <p class="hero-sub">Software engineer. Python, SQL, metadata governance.</p>
       </div>
+      <div class="hero-bottom">
+        <p class="hero-line">Everything I work with, connected. <span class="hero-focus" id="globe-focus" aria-live="polite"></span></p>
+        <div class="actions">
+          <a class="btn primary" href="#projects">See my work</a>
+          <a class="btn" href="#contact">Get in touch</a>
+        </div>
+      </div>
+      <ul class="sr-only" id="globe-nodes" aria-label="Topics on this page"></ul>
     </section>
 
     <section id="about" class="section">
@@ -159,7 +145,6 @@
 
   <noscript><p class="nojs">This site works best with JavaScript on. You can reach King Pra at <a href="mailto:info@kingpra.com">info@kingpra.com</a>.</p></noscript>
 
-  <button class="term-fab" type="button" data-term-open aria-controls="term" aria-expanded="false" aria-label="Open the terminal"><span aria-hidden="true">&gt;_</span></button>
 
   <div class="term" id="term" role="dialog" aria-label="Terminal" hidden>
     <div class="term-win">

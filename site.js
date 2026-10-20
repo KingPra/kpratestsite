@@ -21,29 +21,15 @@
   };
   const smooth = () => (reduceMotion ? "auto" : "smooth");
 
-  /* ---------------- Theme ---------------- */
-  const themeBtn = $("#theme-toggle");
-  const sysDark = window.matchMedia("(prefers-color-scheme: dark)");
-  const effectiveTheme = () => root.dataset.theme || (sysDark.matches ? "dark" : "light");
-  function syncThemeButton() {
-    const dark = effectiveTheme() === "dark";
-    themeBtn.dataset.mode = dark ? "dark" : "light";
-    themeBtn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
-  }
-  function setTheme(t) {
-    root.dataset.theme = t;
-    store.set("kp-theme", t);
-    syncThemeButton();
-    window.dispatchEvent(new Event("kp-theme"));
-  }
-  themeBtn.addEventListener("click", () => setTheme(effectiveTheme() === "dark" ? "light" : "dark"));
-  sysDark.addEventListener("change", () => { syncThemeButton(); window.dispatchEvent(new Event("kp-theme")); });
-  syncThemeButton();
-  window.KP = { setTheme, effectiveTheme };
+  window.KP = {};
 
   /* ---------------- Header ---------------- */
   const header = $(".site-header");
-  const onScroll = () => header.classList.toggle("is-scrolled", window.scrollY > 8);
+  const heroEl = $("#top");
+  const onScroll = () => {
+    header.classList.toggle("is-scrolled", window.scrollY > 8);
+    header.classList.toggle("past-hero", window.scrollY > (heroEl ? heroEl.offsetHeight * 0.55 : 400));
+  };
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
@@ -60,10 +46,6 @@
 
   /* ---------------- Hero text ---------------- */
   $("#hero-name").textContent = PROFILE.name;
-  if (PROFILE.lede) $("#hero-lede").textContent = PROFILE.lede;
-  const facts = $("#facts");
-  [["Experience", PROFILE.years + " years"], ["Languages", LANGS.join(", ")], ["Focus", PROFILE.focus], ["Platform", PROFILE.platform]]
-    .forEach(([k, v]) => { const d = el("div"); d.append(el("dt", "", k), el("dd", "", v)); facts.append(d); });
 
   /* ---------------- About + now ---------------- */
   const aboutText = $("#about-text");
@@ -312,256 +294,206 @@
 
   $("#year").textContent = new Date().getFullYear();
 
-  /* ---------------- Hero lineage graph ---------------- */
-  const GRAPH = {
-    nodes: [
-      { id: "python", label: "Python", x: 0.02, y: 0.16, to: "work" },
-      { id: "sql", label: "SQL", x: 0.07, y: 0.47, to: "work" },
-      { id: "ai", label: "AI", x: 0.02, y: 0.80, to: "about" },
-      { id: "collibra", label: "Collibra", x: 0.33, y: 0.24, to: "lineage" },
-      { id: "ha", label: "Home Assistant", x: 0.30, y: 0.60, to: "project-dashboard" },
-      { id: "picase", label: "Pi 5 case", x: 0.34, y: 0.94, to: "project-pi-case" },
-      { id: "metadata", label: "Metadata governance", short: "Metadata", x: 0.60, y: 0.06, to: "lineage" },
-      { id: "lineage", label: "Lineage", x: 0.66, y: 0.38, to: "lineage" },
-      { id: "dashboard", label: "3D dashboard", x: 0.64, y: 0.70, to: "project-dashboard" },
-      { id: "kingpra", label: "kingpra.com", x: 0.60, y: 0.98, to: "project-kingpra" },
-      { id: "trust", label: "Trusted data", x: 0.98, y: 0.22, to: "lineage", sink: true },
-      { id: "content", label: "YouTube + TikTok", short: "Videos", x: 0.98, y: 0.82, to: "project-content", sink: true }
-    ],
-    edges: [["python", "collibra"], ["sql", "collibra"], ["sql", "lineage"], ["python", "ha"], ["collibra", "metadata"], ["collibra", "lineage"],
-      ["metadata", "trust"], ["lineage", "trust"], ["ai", "kingpra"], ["ai", "dashboard"], ["ha", "dashboard"], ["picase", "dashboard"],
-      ["dashboard", "content"], ["kingpra", "content"]]
-  };
-  const sectionName = { work: "Experience", about: "About", lineage: "the lineage demo" };
-  const nodeById = (id) => GRAPH.nodes.find((n) => n.id === id);
-  const parents = (id) => GRAPH.edges.filter((e) => e[1] === id).map((e) => e[0]);
-  const children = (id) => GRAPH.edges.filter((e) => e[0] === id).map((e) => e[1]);
-  function closure(id, next) { const out = new Set(); const stack = [id]; while (stack.length) { next(stack.pop()).forEach((x) => { if (!out.has(x)) { out.add(x); stack.push(x); } }); } return out; }
+  /* ---------------- Hero: the 3D data universe ---------------- */
+  const NODES = [
+    { label: "Python", lon: 0.2, lat: 0.55, to: "work" },
+    { label: "SQL", lon: -0.5, lat: 0.35, to: "work" },
+    { label: "Collibra", lon: 0.9, lat: 0.1, to: "lineage" },
+    { label: "Metadata governance", short: "Metadata", lon: 1.6, lat: -0.35, to: "lineage" },
+    { label: "Lineage", lon: 2.3, lat: 0.25, to: "lineage" },
+    { label: "AI", lon: 3.0, lat: -0.55, to: "about" },
+    { label: "Home Assistant", lon: 3.8, lat: 0.45, to: "project-dashboard" },
+    { label: "Pi 5 case", lon: 4.5, lat: -0.15, to: "project-pi-case" },
+    { label: "3D dashboard", lon: 5.2, lat: 0.6, to: "project-dashboard" },
+    { label: "YouTube + TikTok", short: "Videos", lon: 5.8, lat: -0.6, to: "project-content" }
+  ];
+  const LINKS = [[0, 2], [1, 2], [2, 3], [2, 4], [3, 4], [5, 8], [6, 8], [7, 8], [8, 9], [0, 6], [5, 9]];
+  const destName = { work: "Experience", about: "About", lineage: "the lineage demo" };
 
   function goTo(target) {
     const t = document.getElementById(target);
     if (!t) return;
-    t.scrollIntoView({ behavior: smooth(), block: target.startsWith("project-") ? "center" : "start" });
-    if (target.startsWith("project-")) {
-      t.animate && !reduceMotion && t.animate([{ boxShadow: "0 0 0 0 var(--accent-soft)" }, { boxShadow: "0 0 0 10px var(--accent-soft)" }, { boxShadow: "0 0 0 0 var(--accent-soft)" }], { duration: 1200, delay: 450 });
+    const isCard = target.startsWith("project-");
+    t.scrollIntoView({ behavior: smooth(), block: isCard ? "center" : "start" });
+    if (isCard && t.animate && !reduceMotion) {
+      t.animate([{ boxShadow: "0 0 0 0 rgba(122,162,255,0)" }, { boxShadow: "0 0 0 8px rgba(122,162,255,.25)" }, { boxShadow: "0 0 0 0 rgba(122,162,255,0)" }], { duration: 1300, delay: 450 });
     }
   }
 
-  (function initGraph() {
-    const canvas = $("#graph-canvas");
-    const caption = $("#graph-caption");
-    if (!finePointer) caption.textContent = "Tap a node to trace what feeds it and what it feeds.";
-    const defaultCaption = caption.textContent;
-    const ctx = canvas.getContext("2d");
+  (function initGlobe() {
+    const canvas = $("#globe");
+    const focusEl = $("#globe-focus");
+    const ctx = canvas && canvas.getContext("2d");
     if (!ctx) return;
-    let W = 0, H = 0, compact = false;
-    let P = {};
-    let curves = [];
-    let hover = null, tapped = null;
-    let colors = {};
-    let start = performance.now();
-    let visible = true, rafId = 0;
-    let labelBoxes = {};
+    const idleText = finePointer ? "Hover a point." : "Tap a point.";
+    focusEl.textContent = idleText;
 
-    function readColors() {
-      const cs = getComputedStyle(root);
-      ["ink", "muted", "line", "line-strong", "accent", "accent-soft", "flow", "surface", "bg"].forEach((k) => { colors[k] = cs.getPropertyValue("--" + k).trim(); });
+    const pts = [];
+    const N = 900, ga = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), t = ga * i;
+      pts.push([Math.cos(t) * r, y, Math.sin(t) * r]);
     }
+    const nodes = NODES.map((n) => { const c = Math.cos(n.lat); return Object.assign({}, n, { p: [Math.cos(n.lon) * c * 1.06, Math.sin(n.lat) * 1.06, Math.sin(n.lon) * c * 1.06] }); });
+
+    let W = 0, H = 0, CX = 0, CY = 0, R = 0, compact = false;
+    let rotY = 0.6, rotX = -0.3, vel = 0;
+    let drag = null, mouse = null, hover = null, tapped = null;
+    let visible = true, rafId = 0, lastDraw = 0;
+    let P = [];
 
     function layout() {
       const r = canvas.getBoundingClientRect();
       W = r.width; H = r.height;
       if (!W || !H) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.round(W * dpr);
-      canvas.height = Math.round(H * dpr);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      compact = W < 520;
-      const padX = 14, padTop = 34, padBot = 16;
-      GRAPH.nodes.forEach((n) => { P[n.id] = { x: padX + n.x * (W - padX * 2), y: padTop + n.y * (H - padTop - padBot) }; });
-      curves = GRAPH.edges.map(([a, b]) => {
-        const p = P[a], q = P[b];
-        const dx = (q.x - p.x) * 0.5;
-        const s = [];
-        for (let i = 0; i <= 48; i++) {
-          const t = i / 48, u = 1 - t;
-          s.push({
-            x: u * u * u * p.x + 3 * u * u * t * (p.x + dx) + 3 * u * t * t * (q.x - dx) + t * t * t * q.x,
-            y: u * u * u * p.y + 3 * u * u * t * p.y + 3 * u * t * t * q.y + t * t * t * q.y
-          });
-        }
-        return { a, b, s };
-      });
+      compact = W < 700;
+      CX = W * (compact ? 0.5 : 0.56);
+      CY = H * (compact ? 0.53 : 0.5);
+      R = compact ? Math.min(W * 0.4, H * 0.27) : Math.min(W * 0.28, H * 0.3);
     }
 
-    function related(id) {
-      if (!id) return null;
-      const up = closure(id, parents);
-      const down = closure(id, children);
-      const nodes = new Set([id, ...up, ...down]);
-      const edges = new Set();
-      GRAPH.edges.forEach(([a, b], i) => {
-        if ((a === id || down.has(a)) && down.has(b)) edges.add(i);
-        if ((b === id || up.has(b)) && up.has(a)) edges.add(i);
-      });
-      return { nodes, edges };
+    function project(p) {
+      const cy = Math.cos(rotY), sy = Math.sin(rotY), cx = Math.cos(rotX), sx = Math.sin(rotX);
+      let x = p[0] * cy - p[2] * sy, z = p[0] * sy + p[2] * cy;
+      const y = p[1] * cx - z * sx; z = p[1] * sx + z * cx;
+      const f = 3.2 / (3.2 + z);
+      return { x: CX + x * R * f, y: CY + y * R * f, z: z, f: f };
     }
 
-    const clamp01 = (v) => Math.max(0, Math.min(1, v));
-    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    function setHover(k) {
+      if (hover === k) return;
+      hover = k;
+      canvas.style.cursor = k == null ? "grab" : "pointer";
+      if (k == null) { focusEl.textContent = idleText; return; }
+      const n = nodes[k];
+      const dest = n.to.startsWith("project-") ? "the project" : (destName[n.to] || n.to);
+      focusEl.textContent = n.label + (finePointer || tapped === k ? ". Click to see " + dest + "." : ". Tap again to see " + dest + ".");
+    }
 
     function draw(now) {
       if (!W) return;
       ctx.clearRect(0, 0, W, H);
-      const intro = reduceMotion ? 1 : clamp01((now - start) / 1600);
-      const rel = related(hover);
-      const appear = (x) => ease(clamp01(intro * 1.6 - x * 0.6));
+      const g = ctx.createRadialGradient(CX, CY, 10, CX, CY, R * 1.5);
+      g.addColorStop(0, "rgba(90,130,255,0.11)"); g.addColorStop(1, "rgba(90,130,255,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-      curves.forEach((c, i) => {
-        const hl = rel && rel.edges.has(i);
-        const local = appear(nodeById(c.a).x);
-        if (local <= 0) return;
-        const upto = Math.max(1, Math.floor(local * (c.s.length - 1)));
-        ctx.globalAlpha = rel ? (hl ? 1 : 0.16) : 0.9;
-        ctx.strokeStyle = hl ? colors.accent : colors["line-strong"];
-        ctx.lineWidth = hl ? 2.2 : 1.3;
-        ctx.beginPath();
-        ctx.moveTo(c.s[0].x, c.s[0].y);
-        for (let k = 1; k <= upto; k++) ctx.lineTo(c.s[k].x, c.s[k].y);
-        ctx.stroke();
+      for (let i = 0; i < pts.length; i++) {
+        const q = project(pts[i]);
+        const a = 0.08 + (1 - (q.z + 1) / 2) * 0.7;
+        const v = Math.round(200 + 40 * ((pts[i][1] + 1) / 2));
+        ctx.fillStyle = "rgba(" + v + "," + v + "," + Math.min(255, v + 20) + "," + (a * 0.85).toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(q.x, q.y, 0.7 + q.f * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
 
-        if (!reduceMotion && local >= 1) {
-          const n = hl ? 2 : 1;
-          for (let j = 0; j < n; j++) {
-            const speed = hl ? 1500 : 2600;
-            const t = ((now / speed) + i * 0.37 + j / n) % 1;
-            const pt = c.s[Math.floor(t * (c.s.length - 1))];
-            ctx.globalAlpha = rel ? (hl ? 1 : 0.12) : 0.85;
-            ctx.fillStyle = hl ? colors.accent : colors.flow;
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, hl ? 2.8 : 2.1, 0, Math.PI * 2);
-            ctx.fill();
-          }
+      P = nodes.map((n) => project(n.p));
+      if (mouse && !drag) {
+        let best = null, bd = 28;
+        P.forEach((q, k) => { const d = Math.hypot(q.x - mouse.x, q.y - mouse.y); if (q.z < 0.4 && d < bd) { bd = d; best = k; } });
+        setHover(best);
+      }
+
+      LINKS.forEach((l, k) => {
+        const A = P[l[0]], B = P[l[1]];
+        const on = hover != null && (l[0] === hover || l[1] === hover);
+        const a = on ? 0.95 : 0.1 + (1 - ((A.z + B.z) / 2 + 1) / 2) * 0.3;
+        const mx = (A.x + B.x) / 2 - (CX - (A.x + B.x) / 2) * 0.12, my = (A.y + B.y) / 2 - (CY - (A.y + B.y) / 2) * 0.12;
+        ctx.strokeStyle = "rgba(122,162,255," + a.toFixed(3) + ")"; ctx.lineWidth = on ? 1.6 : 0.9;
+        ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo(mx, my, B.x, B.y); ctx.stroke();
+        if (!reduceMotion) {
+          const t = ((now / 2000) + k * 0.23) % 1, u = 1 - t;
+          ctx.fillStyle = "rgba(170,195,255," + Math.min(1, a + 0.2).toFixed(3) + ")";
+          ctx.beginPath(); ctx.arc(u * u * A.x + 2 * u * t * mx + t * t * B.x, u * u * A.y + 2 * u * t * my + t * t * B.y, 1.6, 0, Math.PI * 2); ctx.fill();
         }
       });
 
-      const fontPx = compact ? 11.5 : 13;
-      ctx.font = `500 ${fontPx}px Geist, system-ui, sans-serif`;
-      ctx.textBaseline = "middle";
-      labelBoxes = {};
-      GRAPH.nodes.forEach((n) => {
-        const a = appear(n.x);
-        if (a <= 0) return;
-        const p = P[n.id];
-        const on = !rel || rel.nodes.has(n.id);
-        const isHover = hover === n.id;
-        ctx.globalAlpha = a * (on ? 1 : 0.28);
-        if (isHover) {
-          ctx.fillStyle = colors["accent-soft"];
-          ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI * 2); ctx.fill();
-        }
-        const r = n.sink ? 6.5 : 5;
-        ctx.fillStyle = n.sink || isHover ? colors.accent : colors.surface;
-        ctx.strokeStyle = rel && on ? colors.accent : (n.sink ? colors.accent : colors.muted);
-        ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-        const text = compact && n.short ? n.short : n.label;
-        const tw = ctx.measureText(text).width;
-        const right = n.x > 0.8;
-        const lx = right ? p.x - 10 - tw : p.x + 10;
-        const ly = p.y - 15;
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = colors.bg;
-        ctx.lineJoin = "round";
-        ctx.strokeText(text, lx, ly);
-        ctx.fillStyle = on ? colors.ink : colors.muted;
-        ctx.fillText(text, lx, ly);
-        labelBoxes[n.id] = { x: lx - 4, y: ly - fontPx, w: tw + 8, h: fontPx * 2 };
+      ctx.font = "500 " + (compact ? 12 : 13) + "px Geist, system-ui, sans-serif";
+      ctx.textBaseline = "alphabetic";
+      P.forEach((q, k) => {
+        const front = 1 - (q.z + 1) / 2, on = k === hover;
+        ctx.globalAlpha = on ? 1 : Math.max(0.08, front * front * 1.05);
+        ctx.fillStyle = "#7aa2ff";
+        ctx.beginPath(); ctx.arc(q.x, q.y, on ? 5.5 : 2.6 + front * 1.8, 0, Math.PI * 2); ctx.fill();
+        if (on) { ctx.strokeStyle = "#7aa2ff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y, 14, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.fillStyle = on ? "#ffffff" : "rgb(196,204,222)";
+        const label = compact && nodes[k].short ? nodes[k].short : nodes[k].label;
+        const tw = ctx.measureText(label).width;
+        const lx = q.x + 11 + tw > W - 8 ? q.x - 11 - tw : q.x + 11;
+        ctx.fillText(label, lx, q.y - 9);
+        ctx.globalAlpha = 1;
       });
-      ctx.globalAlpha = 1;
     }
 
     function frame(now) {
+      if (!drag && !reduceMotion) { rotY += 0.0012 + vel; vel *= 0.95; }
+      else if (!drag && Math.abs(vel) > 0.0001) { rotY += vel; vel *= 0.9; }
       draw(now);
-      if (visible && !reduceMotion) rafId = requestAnimationFrame(frame);
-      else rafId = 0;
+      lastDraw = now;
+      rafId = visible ? requestAnimationFrame(frame) : 0;
     }
-    function kick() { if (!rafId) rafId = requestAnimationFrame(frame); }
-    function redraw() { if (reduceMotion || !visible) draw(performance.now()); else kick(); }
+    function kick() { if (!rafId && visible) rafId = requestAnimationFrame(frame); }
 
-    function hit(x, y) {
-      let best = null, bestD = 22;
-      GRAPH.nodes.forEach((n) => {
-        const p = P[n.id];
-        const d = Math.hypot(p.x - x, p.y - y);
-        if (d < bestD) { best = n.id; bestD = d; }
-        const b = labelBoxes[n.id];
-        if (!best && b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) best = n.id;
-      });
-      return best;
-    }
-
-    function describe(id) {
-      const n = nodeById(id);
-      const ps = parents(id).map((x) => nodeById(x).label);
-      const cs = children(id).map((x) => nodeById(x).label);
-      const parts = [];
-      if (ps.length) parts.push("fed by " + ps.join(", "));
-      if (cs.length) parts.push("feeds " + cs.join(", "));
-      const dest = n.to.startsWith("project-") ? "the project" : (sectionName[n.to] || n.to);
-      caption.replaceChildren();
-      const strong = el("strong", "", n.label);
-      caption.append(strong, document.createTextNode(": " + parts.join("; ") + ". " + (tapped === id || finePointer ? "Click to jump to " + dest + "." : "Tap again to jump to " + dest + ".")));
-    }
-
-    function setHover(id) {
-      if (hover === id) return;
-      hover = id;
-      canvas.style.cursor = id ? "pointer" : "default";
-      if (id) describe(id); else caption.textContent = defaultCaption;
-      redraw();
-    }
-
+    const local = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    canvas.addEventListener("pointerdown", (e) => {
+      drag = { start: local(e), last: local(e), moved: false, id: e.pointerId, type: e.pointerType };
+      vel = 0;
+      if (e.pointerType === "mouse") { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = "grabbing"; }
+    });
     canvas.addEventListener("pointermove", (e) => {
-      if (e.pointerType !== "mouse") return;
-      const r = canvas.getBoundingClientRect();
-      setHover(hit(e.clientX - r.left, e.clientY - r.top));
+      const p = local(e);
+      if (e.pointerType === "mouse") mouse = p;
+      if (drag && drag.id === e.pointerId) {
+        const dx = p.x - drag.last.x, dy = p.y - drag.last.y;
+        if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) > 4) drag.moved = true;
+        rotY += dx * 0.006;
+        if (drag.type === "mouse") rotX = Math.max(-1.1, Math.min(1.1, rotX + dy * 0.004));
+        vel = dx * 0.0006;
+        drag.last = p;
+      }
+      kick();
     });
-    canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") setHover(null); });
-    canvas.addEventListener("click", (e) => {
-      const r = canvas.getBoundingClientRect();
-      const id = hit(e.clientX - r.left, e.clientY - r.top);
-      if (!id) { tapped = null; setHover(null); return; }
-      if (!finePointer && tapped !== id) { tapped = id; hover = null; setHover(id); return; }
+    const end = (e) => {
+      if (!drag || drag.id !== e.pointerId) return;
+      const wasClick = !drag.moved;
+      const p = local(e);
+      drag = null;
+      canvas.style.cursor = hover == null ? "grab" : "pointer";
+      if (!wasClick || e.type === "pointercancel") return;
+      let best = null, bd = finePointer ? 28 : 36;
+      P.forEach((q, k) => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (q.z < 0.4 && d < bd) { bd = d; best = k; } });
+      if (best == null) { tapped = null; if (!finePointer) setHover(null); return; }
+      if (!finePointer && tapped !== best) { tapped = best; hover = null; setHover(best); kick(); return; }
       tapped = null;
-      goTo(nodeById(id).to);
-    });
+      goTo(nodes[best].to);
+    };
+    canvas.addEventListener("pointerup", end);
+    canvas.addEventListener("pointercancel", end);
+    canvas.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") { mouse = null; if (!drag) setHover(null); } });
 
-    // Keyboard and screen reader access to the same nodes.
-    const list = $("#graph-nodes");
-    GRAPH.nodes.forEach((n) => {
+    // Keyboard and screen reader access to the same points.
+    const list = $("#globe-nodes");
+    nodes.forEach((n, k) => {
       const li = el("li");
       const b = el("button", "", n.label);
       b.type = "button";
-      b.addEventListener("focus", () => setHover(n.id));
+      b.addEventListener("focus", () => { setHover(k); kick(); });
       b.addEventListener("blur", () => setHover(null));
       b.addEventListener("click", () => goTo(n.to));
       li.append(b);
       list.append(li);
     });
 
-    readColors();
     layout();
-    if ("ResizeObserver" in window) new ResizeObserver(() => { layout(); redraw(); }).observe(canvas);
-    else window.addEventListener("resize", () => { layout(); redraw(); });
-    window.addEventListener("kp-theme", () => { readColors(); redraw(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+    if ("ResizeObserver" in window) new ResizeObserver(() => { layout(); if (!rafId) draw(performance.now()); }).observe(canvas);
+    else window.addEventListener("resize", () => { layout(); draw(performance.now()); });
     if ("IntersectionObserver" in window) {
-      new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; if (visible) redraw(); }).observe(canvas);
+      new IntersectionObserver((entries) => { visible = entries[0].isIntersecting; if (visible) kick(); }).observe(canvas);
     }
-    document.addEventListener("visibilitychange", () => { visible = !document.hidden; if (visible) redraw(); });
-    start = performance.now();
-    redraw();
+    document.addEventListener("visibilitychange", () => { visible = !document.hidden; if (visible) kick(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!rafId) draw(performance.now()); });
+    draw(performance.now());
+    kick();
   })();
 })();

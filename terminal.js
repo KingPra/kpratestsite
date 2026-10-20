@@ -160,7 +160,6 @@
     { name: "ls", desc: "list files", run: ls },
     { name: "cat", usage: "cat <file>", desc: "read a file", run: cat },
     { name: "goto", usage: "goto <section>", desc: "jump to part of the page", run: gotoCmd },
-    { name: "theme", usage: "theme light|dark", desc: "switch the site theme", run: theme },
     { name: "history", desc: "commands you've run", run: showHistory },
     { name: "clear", desc: "clear the screen (Ctrl+L)", run: () => screen.replaceChildren() },
     { name: "help", desc: "this list", run: help }
@@ -176,7 +175,7 @@
 
   function help() {
     const rows = COMMANDS.slice().sort((a, b) => {
-      const order = ["help", "about", "skills", "experience", "projects", "open", "lineage", "links", "now", "contact", "sql", "goto", "neofetch", "ls", "cat", "theme", "history", "clear"];
+      const order = ["help", "about", "skills", "experience", "projects", "open", "lineage", "links", "now", "contact", "sql", "goto", "neofetch", "ls", "cat", "history", "clear"];
       return order.indexOf(a.name) - order.indexOf(b.name);
     }).map((c) => {
       const r = el("div", "help-row");
@@ -523,7 +522,6 @@
     if (parts.length === 2 && parts[0] === "cat") return { base: "cat ", token: parts[1], list: Object.keys(FILES) };
     if (parts.length === 2 && parts[0] === "open") return { base: "open ", token: parts[1], list: PROFILE.projects.map((p) => p.id) };
     if (parts.length === 2 && parts[0] === "lineage") return { base: "lineage ", token: parts[1], list: ASSETS.map((x) => x.id) };
-    if (parts.length === 2 && parts[0] === "theme") return { base: "theme ", token: parts[1], list: ["light", "dark"] };
     if (parts.length === 2 && parts[0] === "goto") return { base: "goto ", token: parts[1], list: SECTIONS };
     return null;
   }
